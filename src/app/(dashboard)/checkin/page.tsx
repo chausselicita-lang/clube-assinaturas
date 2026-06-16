@@ -7,7 +7,7 @@ import { Select } from '@/components/ui/select'
 import { StatusBadge } from '@/components/ui/badge'
 import { createClient } from '@/lib/supabase/client'
 import { fmtBRL, fmtDate } from '@/lib/utils/format'
-import { calcularComissao } from '@/lib/utils/comissao'
+import { calcularComissao, obterValorPlano } from '@/lib/utils/comissao'
 import { Search, CheckCircle2, AlertTriangle, CreditCard, User, Scissors } from 'lucide-react'
 import { useState } from 'react'
 import type { Assinatura, Profissional, Servico, Cliente } from '@/lib/types'
@@ -49,7 +49,7 @@ export default function CheckinPage() {
 
       const { data: assinaturas } = await supabase
         .from('assinaturas')
-        .select('*, planos(nome, creditos_mensais)')
+        .select('*, planos(nome, creditos_mensais, valor_mensal, valor_semestral, valor_anual)')
         .eq('cliente_id', cliente.id)
         .eq('status', 'ativa')
         .order('created_at', { ascending: false })
@@ -87,7 +87,9 @@ export default function CheckinPage() {
       return
     }
 
-    const comissaoValor = calcularComissao(servico.valor_interno, profissional.comissao_percentual)
+    const plano = assinatura.planos as { nome: string; valor_mensal: number; valor_semestral: number; valor_anual: number } | undefined
+    const valorPlano = plano ? obterValorPlano(plano, assinatura.periodicidade) : 0
+    const comissaoValor = calcularComissao(valorPlano, profissional.comissao_percentual)
     const now = new Date()
     const mes = now.getMonth() + 1
     const ano = now.getFullYear()
@@ -137,8 +139,10 @@ export default function CheckinPage() {
 
   const servicoSelecionado = servicos.find(s => s.id === servicoId)
   const profissionalSelecionado = profissionais.find(p => p.id === profissionalId)
-  const comissaoPreview = servicoSelecionado && profissionalSelecionado
-    ? calcularComissao(servicoSelecionado.valor_interno, profissionalSelecionado.comissao_percentual)
+  const planoSelecionado = encontrado?.assinatura.planos as { nome: string; valor_mensal: number; valor_semestral: number; valor_anual: number } | undefined
+  const valorPlanoPreview = planoSelecionado ? obterValorPlano(planoSelecionado, encontrado!.assinatura.periodicidade) : 0
+  const comissaoPreview = servicoSelecionado && profissionalSelecionado && planoSelecionado
+    ? calcularComissao(valorPlanoPreview, profissionalSelecionado.comissao_percentual)
     : null
 
   return (
@@ -264,8 +268,8 @@ export default function CheckinPage() {
                   {comissaoPreview !== null && (
                     <div className="rounded-lg bg-emerald-50 border border-emerald-100 px-4 py-3 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Valor do serviço</span>
-                        <span className="font-medium">{fmtBRL(servicoSelecionado!.valor_interno)}</span>
+                        <span className="text-gray-600">Valor do plano</span>
+                        <span className="font-medium">{fmtBRL(valorPlanoPreview)}</span>
                       </div>
                       <div className="flex justify-between mt-1">
                         <span className="text-gray-600">Comissão ({profissionalSelecionado!.comissao_percentual}%)</span>
