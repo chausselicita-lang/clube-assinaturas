@@ -9,6 +9,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
+// Menu order: Dashboard, Clientes, Planos, Assinaturas, Profissionais, Check-in, Comissões, Relatórios
 const nav = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/clientes', label: 'Clientes', icon: Users },
