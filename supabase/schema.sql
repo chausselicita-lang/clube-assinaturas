@@ -79,6 +79,7 @@ create table if not exists assinaturas (
   creditos_disponiveis integer not null default 0,
   data_inicio date not null default current_date,
   proxima_cobranca date,
+  forma_pagamento text,
   created_at timestamptz not null default now()
 );
 
