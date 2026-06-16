@@ -4,12 +4,11 @@ import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
-import { StatusBadge } from '@/components/ui/badge'
 import { createClient } from '@/lib/supabase/client'
 import { fmtBRL, fmtDate } from '@/lib/utils/format'
 import { calcularComissao, obterValorPlano } from '@/lib/utils/comissao'
-import { Search, CheckCircle2, AlertTriangle, CreditCard, User, Scissors } from 'lucide-react'
-import { useState } from 'react'
+import { Search, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { useState, useEffect } from 'react'
 import type { Assinatura, Profissional, Servico, Cliente } from '@/lib/types'
 
 type Step = 'busca' | 'confirmacao' | 'sucesso'
@@ -32,8 +31,29 @@ export default function CheckinPage() {
   const [servicoId, setServicoId] = useState('')
   const [confirmando, setConfirmando] = useState(false)
   const [resultado, setResultado] = useState<{ comissao: number; servico: string; profissional: string } | null>(null)
+  const [carregandoProfissionaisServicos, setCarregandoProfissionaisServicos] = useState(true)
+
+  useEffect(() => {
+    async function carregarProfissionaisServicos() {
+      try {
+        const [profsRes, servsRes] = await Promise.all([
+          supabase.from('profissionais').select('*').eq('ativo', true).order('nome'),
+          supabase.from('servicos').select('*').order('nome'),
+        ])
+        setProfissionais((profsRes.data ?? []) as Profissional[])
+        setServicos((servsRes.data ?? []) as Servico[])
+      } finally {
+        setCarregandoProfissionaisServicos(false)
+      }
+    }
+    carregarProfissionaisServicos()
+  }, [supabase])
 
   async function handleBusca() {
+    if (!profissionalId) {
+      setErro('Selecione um profissional primeiro.')
+      return
+    }
     setErro('')
     setLoading(true)
     try {
@@ -57,17 +77,8 @@ export default function CheckinPage() {
 
       if (!assinaturas?.length) { setErro('Nenhuma assinatura ativa encontrada para este cliente.'); setLoading(false); return }
 
-      const [profsRes, servsRes] = await Promise.all([
-        supabase.from('profissionais').select('*').eq('ativo', true).order('nome'),
-        supabase.from('servicos').select('*').order('nome'),
-      ])
-
       setEncontrado({ assinatura: assinaturas[0] as Assinatura, cliente })
-      setProfissionais((profsRes.data ?? []) as Profissional[])
-      setServicos((servsRes.data ?? []) as Servico[])
-      setProfissionalId('')
       setServicoId('')
-      setStep('confirmacao')
     } finally {
       setLoading(false)
     }
@@ -155,90 +166,44 @@ export default function CheckinPage() {
           {step === 'busca' && (
             <Card>
               <CardHeader>
-                <h2 className="font-semibold text-gray-900">Identificar Cliente</h2>
-                <p className="text-xs text-gray-400 mt-0.5">Informe o telefone do cliente</p>
+                <h2 className="font-semibold text-gray-900">Registrar Atendimento</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Preencha os dados abaixo</p>
               </CardHeader>
               <CardBody className="space-y-4">
-                <div className="flex gap-3">
-                  <Input
-                    placeholder="(11) 99999-9999"
-                    value={busca}
-                    onChange={e => setBusca(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleBusca()}
-                    className="flex-1"
-                  />
-                  <Button onClick={handleBusca} loading={loading}>
-                    <Search size={16} /> Buscar
-                  </Button>
-                </div>
-                {erro && (
-                  <div className="flex items-center gap-2 rounded-lg bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-600">
-                    <AlertTriangle size={15} /> {erro}
+                {/* 1. PROFISSIONAL (OBRIGATÓRIO, PRIMEIRO) */}
+                <Select
+                  label="Profissional *"
+                  value={profissionalId}
+                  onChange={e => setProfissionalId(e.target.value)}
+                  disabled={carregandoProfissionaisServicos}
+                >
+                  <option value="">Selecione o profissional...</option>
+                  {profissionais.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.nome} — {p.funcao}
+                    </option>
+                  ))}
+                </Select>
+
+                {/* 2. BUSCAR CLIENTE */}
+                {profissionalId && (
+                  <div className="flex gap-3">
+                    <Input
+                      placeholder="(11) 99999-9999"
+                      value={busca}
+                      onChange={e => setBusca(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleBusca()}
+                      className="flex-1"
+                      disabled={loading}
+                    />
+                    <Button onClick={handleBusca} loading={loading}>
+                      <Search size={16} /> Buscar
+                    </Button>
                   </div>
                 )}
-              </CardBody>
-            </Card>
-          )}
 
-          {/* STEP: CONFIRMAÇÃO */}
-          {step === 'confirmacao' && encontrado && (
-            <div className="space-y-4">
-              {/* Card do cliente */}
-              <Card>
-                <CardBody>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center">
-                      <User size={18} className="text-violet-600" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-gray-900">{encontrado.cliente.nome}</div>
-                      <div className="text-xs text-gray-400">{encontrado.cliente.telefone}</div>
-                    </div>
-                    <div className="ml-auto">
-                      <StatusBadge status={encontrado.assinatura.status} />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-lg bg-gray-50 p-3">
-                      <div className="text-xs text-gray-500 mb-1">Plano</div>
-                      <div className="text-sm font-semibold text-gray-800">
-                        {(encontrado.assinatura.planos as { nome: string })?.nome}
-                      </div>
-                    </div>
-                    <div className="rounded-lg bg-violet-50 p-3">
-                      <div className="text-xs text-violet-600 mb-1 flex items-center gap-1">
-                        <CreditCard size={11} /> Créditos disponíveis
-                      </div>
-                      <div className="text-sm font-bold text-violet-700">
-                        {encontrado.assinatura.creditos_disponiveis} / {encontrado.assinatura.creditos_totais}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-3">
-                    <div className="w-full h-2 bg-gray-100 rounded-full">
-                      <div
-                        className="h-2 bg-violet-500 rounded-full transition-all"
-                        style={{ width: `${encontrado.assinatura.creditos_totais > 0 ? (encontrado.assinatura.creditos_disponiveis / encontrado.assinatura.creditos_totais) * 100 : 0}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mt-2 text-xs text-gray-400">
-                    Renova em {fmtDate(encontrado.assinatura.data_renovacao)}
-                  </div>
-                </CardBody>
-              </Card>
-
-              {/* Seleção serviço + profissional */}
-              <Card>
-                <CardHeader>
-                  <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                    <Scissors size={15} /> Registrar Atendimento
-                  </h3>
-                </CardHeader>
-                <CardBody className="space-y-4">
+                {/* 3. SERVIÇO REALIZADO */}
+                {encontrado && (
                   <Select
                     label="Serviço"
                     value={servicoId}
@@ -251,43 +216,43 @@ export default function CheckinPage() {
                       </option>
                     ))}
                   </Select>
+                )}
 
-                  <Select
-                    label="Profissional"
-                    value={profissionalId}
-                    onChange={e => setProfissionalId(e.target.value)}
-                  >
-                    <option value="">Selecione o profissional...</option>
-                    {profissionais.map(p => (
-                      <option key={p.id} value={p.id}>
-                        {p.nome} — {p.funcao}
-                      </option>
-                    ))}
-                  </Select>
-
-                  {comissaoPreview !== null && (
-                    <div className="rounded-lg bg-emerald-50 border border-emerald-100 px-4 py-3 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Valor do plano</span>
-                        <span className="font-medium">{fmtBRL(valorPlanoPreview)}</span>
-                      </div>
-                      <div className="flex justify-between mt-1">
-                        <span className="text-gray-600">Comissão ({profissionalSelecionado!.comissao_percentual}%)</span>
-                        <span className="font-semibold text-emerald-700">{fmtBRL(comissaoPreview)}</span>
-                      </div>
-                      <div className="flex justify-between mt-1">
-                        <span className="text-gray-600">Créditos a debitar</span>
-                        <span className="font-medium text-violet-700">{servicoSelecionado!.creditos_necessarios}</span>
-                      </div>
+                {/* 4. PREVIEW DA COMISSÃO */}
+                {encontrado && comissaoPreview !== null && (
+                  <div className="rounded-lg bg-emerald-50 border border-emerald-100 px-4 py-3 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Valor do plano</span>
+                      <span className="font-medium">{fmtBRL(valorPlanoPreview)}</span>
                     </div>
-                  )}
-
-                  {erro && (
-                    <div className="flex items-center gap-2 rounded-lg bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-600">
-                      <AlertTriangle size={15} /> {erro}
+                    <div className="flex justify-between mt-1">
+                      <span className="text-gray-600">Comissão ({profissionalSelecionado!.comissao_percentual}%)</span>
+                      <span className="font-semibold text-emerald-700">{fmtBRL(comissaoPreview)}</span>
                     </div>
-                  )}
+                    <div className="flex justify-between mt-1">
+                      <span className="text-gray-600">Créditos a debitar</span>
+                      <span className="font-medium text-violet-700">{servicoSelecionado!.creditos_necessarios}</span>
+                    </div>
+                  </div>
+                )}
 
+                {encontrado && (
+                  <div className="rounded-lg bg-gray-50 p-3 text-sm">
+                    <div className="font-semibold text-gray-900 mb-2">{encontrado.cliente.nome}</div>
+                    <div className="text-xs text-gray-500 mb-2">
+                      Créditos: {encontrado.assinatura.creditos_disponiveis} / {encontrado.assinatura.creditos_totais}
+                    </div>
+                  </div>
+                )}
+
+                {erro && (
+                  <div className="flex items-center gap-2 rounded-lg bg-red-50 border border-red-100 px-4 py-3 text-sm text-red-600">
+                    <AlertTriangle size={15} /> {erro}
+                  </div>
+                )}
+
+                {/* 5. BOTÃO CONFIRMAR */}
+                {encontrado && (
                   <div className="flex gap-3 pt-1">
                     <Button variant="outline" onClick={reiniciar} className="flex-1">Cancelar</Button>
                     <Button
@@ -299,10 +264,11 @@ export default function CheckinPage() {
                       Confirmar Atendimento
                     </Button>
                   </div>
-                </CardBody>
-              </Card>
-            </div>
+                )}
+              </CardBody>
+            </Card>
           )}
+
 
           {/* STEP: SUCESSO */}
           {step === 'sucesso' && resultado && (
