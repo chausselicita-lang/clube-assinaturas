@@ -4,7 +4,15 @@ import { supabase } from '../supabase'
 import { formatarData } from '../lib/format'
 import Modal from '../components/Modal'
 
-const VAZIO = { nome: '', telefone: '', whatsapp: '', email: '', nascimento: '', observacoes: '' }
+const VAZIO = {
+  nome: '',
+  telefone: '',
+  whatsapp: '',
+  email: '',
+  cpf: '',
+  nascimento: '',
+  observacoes: '',
+}
 
 export default function Clientes() {
   const [clientes, setClientes] = useState([])
@@ -42,6 +50,7 @@ export default function Clientes() {
         telefone: form.telefone,
         whatsapp: form.whatsapp || null,
         email: form.email || null,
+        cpf: form.cpf || null,
         nascimento: form.nascimento || null,
         observacoes: form.observacoes || null,
       })
@@ -56,7 +65,7 @@ export default function Clientes() {
   }
 
   const clientesFiltrados = clientes.filter((c) =>
-    `${c.nome} ${c.telefone}`.toLowerCase().includes(busca.toLowerCase()),
+    `${c.nome} ${c.telefone} ${c.cpf || ''}`.toLowerCase().includes(busca.toLowerCase()),
   )
 
   return (
@@ -76,7 +85,7 @@ export default function Clientes() {
         <Search size={16} className="text-[var(--color-text-muted)]" />
         <input
           className="w-full bg-transparent text-sm outline-none placeholder:text-[var(--color-text-muted)]"
-          placeholder="Buscar por nome ou telefone"
+          placeholder="Buscar por nome, telefone ou CPF"
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
         />
@@ -88,6 +97,7 @@ export default function Clientes() {
             <tr className="border-b border-[var(--color-border)] text-left text-xs text-[var(--color-text-muted)]">
               <th className="px-4 py-3 font-medium">Nome</th>
               <th className="px-4 py-3 font-medium">Telefone</th>
+              <th className="px-4 py-3 font-medium">CPF</th>
               <th className="px-4 py-3 font-medium">E-mail</th>
               <th className="px-4 py-3 font-medium">Nascimento</th>
               <th className="px-4 py-3 font-medium">Cadastro</th>
@@ -96,14 +106,14 @@ export default function Clientes() {
           <tbody>
             {carregando && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-[var(--color-text-muted)]">
+                <td colSpan={6} className="px-4 py-6 text-center text-[var(--color-text-muted)]">
                   Carregando...
                 </td>
               </tr>
             )}
             {!carregando && clientesFiltrados.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-[var(--color-text-muted)]">
+                <td colSpan={6} className="px-4 py-6 text-center text-[var(--color-text-muted)]">
                   Nenhum cliente encontrado.
                 </td>
               </tr>
@@ -115,6 +125,7 @@ export default function Clientes() {
               >
                 <td className="px-4 py-3 font-medium text-[var(--color-text)]">{c.nome}</td>
                 <td className="px-4 py-3 text-[var(--color-text-muted)]">{c.telefone}</td>
+                <td className="px-4 py-3 text-[var(--color-text-muted)]">{c.cpf || '—'}</td>
                 <td className="px-4 py-3 text-[var(--color-text-muted)]">{c.email || '—'}</td>
                 <td className="px-4 py-3 text-[var(--color-text-muted)]">
                   {formatarData(c.nascimento)}
@@ -165,15 +176,22 @@ export default function Clientes() {
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                 />
               </Campo>
-              <Campo label="Nascimento">
+              <Campo label="CPF">
                 <input
-                  type="date"
                   className="input-base"
-                  value={form.nascimento}
-                  onChange={(e) => setForm({ ...form, nascimento: e.target.value })}
+                  value={form.cpf}
+                  onChange={(e) => setForm({ ...form, cpf: e.target.value })}
                 />
               </Campo>
             </div>
+            <Campo label="Nascimento">
+              <input
+                type="date"
+                className="input-base"
+                value={form.nascimento}
+                onChange={(e) => setForm({ ...form, nascimento: e.target.value })}
+              />
+            </Campo>
             <Campo label="Observações">
               <textarea
                 className="input-base"

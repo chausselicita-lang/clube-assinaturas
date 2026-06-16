@@ -41,6 +41,7 @@ create table if not exists clientes (
   whatsapp text,
   email text,
   nascimento date,
+  cpf text,
   observacoes text,
   ativo boolean not null default true,
   created_at timestamptz not null default now()
@@ -155,6 +156,26 @@ create table if not exists comissoes (
 create index if not exists idx_comissoes_tenant on comissoes(tenant_id);
 create index if not exists idx_comissoes_profissional on comissoes(profissional_id);
 
+-- ------------------------------------------------------------
+-- CHECKINS (registro de check-in do cliente)
+-- ------------------------------------------------------------
+create table if not exists checkins (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references tenants(id) on delete cascade,
+  cliente_id uuid not null references clientes(id) on delete cascade,
+  assinatura_id uuid not null references assinaturas(id) on delete cascade,
+  profissional_id uuid references profissionais(id) on delete set null,
+  creditos_antes integer not null,
+  creditos_depois integer not null,
+  data_hora timestamptz not null default now(),
+  observacao text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_checkins_tenant on checkins(tenant_id);
+create index if not exists idx_checkins_cliente on checkins(cliente_id);
+create index if not exists idx_checkins_data on checkins(tenant_id, data_hora);
+
 -- ============================================================
 -- FUNÇÃO AUXILIAR: tenant do usuário logado
 -- ============================================================
@@ -187,7 +208,7 @@ do $$
 declare
   t text;
 begin
-  foreach t in array array['clientes','planos','assinaturas','profissionais','servicos','atendimentos','comissoes']
+  foreach t in array array['clientes','planos','assinaturas','profissionais','servicos','atendimentos','comissoes','checkins']
   loop
     execute format(
       'drop trigger if exists trg_set_tenant_id on %I; create trigger trg_set_tenant_id before insert on %I for each row execute function set_tenant_id();',
@@ -235,6 +256,7 @@ alter table profissionais enable row level security;
 alter table servicos enable row level security;
 alter table atendimentos enable row level security;
 alter table comissoes enable row level security;
+alter table checkins enable row level security;
 
 create policy "tenants_select_own" on tenants
   for select using (id = get_tenant_id());
@@ -246,7 +268,7 @@ do $$
 declare
   t text;
 begin
-  foreach t in array array['clientes','planos','assinaturas','profissionais','servicos','atendimentos','comissoes']
+  foreach t in array array['clientes','planos','assinaturas','profissionais','servicos','atendimentos','comissoes','checkins']
   loop
     execute format('create policy "%I_select" on %I for select using (tenant_id = get_tenant_id());', t, t);
     execute format('create policy "%I_insert" on %I for insert with check (tenant_id = get_tenant_id() or tenant_id is null);', t, t);
