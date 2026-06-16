@@ -4,19 +4,18 @@ import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils/cn'
 import {
   LayoutDashboard, Users, CreditCard, ClipboardList,
-  QrCode, Scissors, Wrench, TrendingUp, FileText, LogOut
+  QrCode, Scissors, TrendingUp, FileText, LogOut
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
 const nav = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/checkin', label: 'Check-in', icon: QrCode },
   { href: '/clientes', label: 'Clientes', icon: Users },
-  { href: '/assinaturas', label: 'Assinaturas', icon: CreditCard },
   { href: '/planos', label: 'Planos', icon: ClipboardList },
+  { href: '/assinaturas', label: 'Assinaturas', icon: CreditCard },
   { href: '/profissionais', label: 'Profissionais', icon: Scissors },
-  { href: '/servicos', label: 'Serviços', icon: Wrench },
+  { href: '/checkin', label: 'Check-in', icon: QrCode },
   { href: '/comissoes', label: 'Comissões', icon: TrendingUp },
   { href: '/relatorios', label: 'Relatórios', icon: FileText },
 ]
