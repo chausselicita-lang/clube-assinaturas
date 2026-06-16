@@ -3,7 +3,8 @@ import { Plus, Eye, Pencil, PauseCircle, PlayCircle, Users, Trophy, Wallet } fro
 import { supabase } from '../supabase'
 import { formatarMoeda, formatarData, formatarHora } from '../lib/format'
 import { inicioDoMes } from '../lib/checkins'
-import { ESPECIALIDADES, calcularComissaoTotal } from '../lib/profissionais'
+import { calcularComissaoProfissional } from '../lib/comissoes'
+import { ESPECIALIDADES } from '../lib/profissionais'
 import KpiCard from '../components/KpiCard'
 import Avatar from '../components/Avatar'
 import Modal from '../components/Modal'
@@ -84,7 +85,7 @@ export default function Profissionais() {
 
     const comissoesMes = profissionais.reduce((total, p) => {
       const checkinsDoProf = (checkinsDoMes || []).filter((c) => c.profissional_id === p.id)
-      return total + calcularComissaoTotal(checkinsDoProf, p.percentual_comissao)
+      return total + calcularComissaoProfissional(checkinsDoProf, p.percentual_comissao).valorComissao
     }, 0)
 
     return { ativos, destaque, comissoesMes }
@@ -380,7 +381,8 @@ export default function Profissionais() {
 }
 
 function DetalheProfissional({ profissional, checkins, checkinsDoMes, onClose }) {
-  const comissaoMes = calcularComissaoTotal(checkinsDoMes, profissional.percentual_comissao)
+  const comissaoMes = calcularComissaoProfissional(checkinsDoMes, profissional.percentual_comissao)
+    .valorComissao
 
   return (
     <Modal titulo="Detalhes do profissional" onClose={onClose}>
