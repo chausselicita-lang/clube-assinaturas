@@ -32,7 +32,7 @@ export default function ProfissionaisPage() {
   })
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<ProfissionalForm>({
-    resolver: zodResolver(profissionalSchema),
+    resolver: zodResolver(profissionalSchema) as any,
   })
 
   function openNew() { setEditing(null); reset({ ativo: true }); setOpen(true) }

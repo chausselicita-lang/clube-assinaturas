@@ -32,7 +32,7 @@ export default function ServicosPage() {
   })
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<ServicoForm>({
-    resolver: zodResolver(servicoSchema),
+    resolver: zodResolver(servicoSchema) as any,
   })
 
   function openNew() { setEditing(null); reset({ creditos_necessarios: 1 }); setOpen(true) }

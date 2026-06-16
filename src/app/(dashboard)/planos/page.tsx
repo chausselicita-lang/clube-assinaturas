@@ -29,7 +29,7 @@ export default function PlanosPage() {
   })
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<PlanoForm>({
-    resolver: zodResolver(planoSchema),
+    resolver: zodResolver(planoSchema) as any,
   })
 
   function openNew() { setEditing(null); reset({ ativo: true }); setOpen(true) }

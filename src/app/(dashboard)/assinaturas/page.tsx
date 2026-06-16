@@ -47,7 +47,7 @@ export default function AssinaturasPage() {
   })
 
   const { register, handleSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm<AssinaturaForm>({
-    resolver: zodResolver(assinaturaSchema),
+    resolver: zodResolver(assinaturaSchema) as any,
     defaultValues: { periodicidade: 'mensal' },
   })
 
