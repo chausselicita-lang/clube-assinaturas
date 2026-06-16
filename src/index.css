@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+@theme {
+  --font-heading: "Syne", sans-serif;
+  --font-body: "DM Sans", sans-serif;
+
+  --color-accent: #6c63ff;
+  --color-accent-light: #8a83ff;
+  --color-accent-dark: #5249e0;
+
+  --color-bg: #0b0b12;
+  --color-bg-soft: #13131d;
+  --color-surface: #1a1a27;
+  --color-surface-hover: #21212f;
+  --color-border: #2a2a3a;
+
+  --color-text: #f1f1f6;
+  --color-text-muted: #9999ad;
+
+  --color-success: #2ecc8f;
+  --color-warning: #f5a623;
+  --color-danger: #ef4d6c;
+}
+
+html,
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
+}
+
+.input-base {
+  @apply w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-soft)] px-3.5 py-2.5 text-sm text-[var(--color-text)] outline-none transition focus:border-[var(--color-accent)] focus:ring-2 focus:ring-[var(--color-accent)]/20 placeholder:text-[var(--color-text-muted)];
+}
+
+.btn-primary {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--color-accent)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--color-accent-dark)] disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-secondary {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-sm font-medium text-[var(--color-text)] transition hover:bg-[var(--color-surface-hover)];
+}
+
+.card {
+  @apply rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5;
+}
