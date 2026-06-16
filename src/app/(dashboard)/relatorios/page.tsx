@@ -1,13 +1,13 @@
 'use client'
 import { Topbar } from '@/components/layout/Topbar'
-import { Card, CardBody, CardHeader } from '@/components/ui/card'
+import { Card, CardBody } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
 import { fmtBRL, fmtDate, fmtPercent, mesAno } from '@/lib/utils/format'
 import { calcularMRR } from '@/lib/utils/comissao'
 import { FileText, Download } from 'lucide-react'
 import { useState } from 'react'
-import type { Assinatura, Comissao, Atendimento } from '@/lib/types'
+import type { Assinatura, Comissao } from '@/lib/types'
 
 type ReportType = 'assinaturas' | 'comissoes' | 'inadimplencia' | 'receita'
 

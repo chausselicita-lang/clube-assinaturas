@@ -31,9 +31,8 @@ export default function ProfissionaisPage() {
     },
   })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<ProfissionalForm>({
-    resolver: zodResolver(profissionalSchema) as any,
+    resolver: zodResolver(profissionalSchema),
   })
 
   function openNew() { setEditing(null); reset({ ativo: true }); setOpen(true) }

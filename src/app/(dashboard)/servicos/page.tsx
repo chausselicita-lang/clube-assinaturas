@@ -31,9 +31,8 @@ export default function ServicosPage() {
     },
   })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<ServicoForm>({
-    resolver: zodResolver(servicoSchema) as any,
+    resolver: zodResolver(servicoSchema),
   })
 
   function openNew() { setEditing(null); reset({ creditos_necessarios: 1 }); setOpen(true) }

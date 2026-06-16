@@ -28,9 +28,8 @@ export default function PlanosPage() {
     },
   })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<PlanoForm>({
-    resolver: zodResolver(planoSchema) as any,
+    resolver: zodResolver(planoSchema),
   })
 
   function openNew() { setEditing(null); reset({ ativo: true }); setOpen(true) }
@@ -56,8 +55,6 @@ export default function PlanosPage() {
     mutationFn: async (id: string) => { await supabase.from('planos').delete().eq('id', id) },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['planos'] }),
   })
-
-  const colors = ['violet', 'blue', 'emerald', 'orange']
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">

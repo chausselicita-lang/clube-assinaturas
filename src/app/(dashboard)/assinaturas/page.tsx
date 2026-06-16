@@ -14,7 +14,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { assinaturaSchema, type AssinaturaForm } from '@/lib/validations'
 import { fmtBRL, fmtDate } from '@/lib/utils/format'
-import { Plus, Pencil, CreditCard } from 'lucide-react'
+import { Plus, CreditCard } from 'lucide-react'
 import { useState } from 'react'
 import type { Assinatura, AssinaturaStatus, Cliente, Plano } from '@/lib/types'
 
@@ -46,9 +46,8 @@ export default function AssinaturasPage() {
     queryFn: async () => { const { data } = await supabase.from('planos').select('*').eq('ativo', true).order('valor_mensal'); return (data ?? []) as Plano[] },
   })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { register, handleSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm<AssinaturaForm>({
-    resolver: zodResolver(assinaturaSchema) as any,
+    resolver: zodResolver(assinaturaSchema),
     defaultValues: { periodicidade: 'mensal' },
   })
 
