@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Search } from 'lucide-react'
+import { Plus, Search, Trash2 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { formatarData } from '../lib/format'
 import Modal from '../components/Modal'
@@ -22,6 +22,7 @@ export default function Clientes() {
   const [form, setForm] = useState(VAZIO)
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
+  const [excluindo, setExcluindo] = useState(null)
 
   useEffect(() => {
     carregarClientes()
@@ -64,6 +65,23 @@ export default function Clientes() {
     }
   }
 
+  async function handleExcluir(cliente) {
+    const confirmado = confirm(
+      `Excluir ${cliente.nome}? Isso também remove assinaturas e check-ins desse cliente.`,
+    )
+    if (!confirmado) return
+    setExcluindo(cliente.id)
+    try {
+      const { error } = await supabase.from('clientes').delete().eq('id', cliente.id)
+      if (error) throw error
+      carregarClientes()
+    } catch {
+      alert('Não foi possível excluir o cliente.')
+    } finally {
+      setExcluindo(null)
+    }
+  }
+
   const clientesFiltrados = clientes.filter((c) =>
     `${c.nome} ${c.telefone} ${c.cpf || ''}`.toLowerCase().includes(busca.toLowerCase()),
   )
@@ -101,19 +119,20 @@ export default function Clientes() {
               <th className="px-4 py-3 font-medium">E-mail</th>
               <th className="px-4 py-3 font-medium">Nascimento</th>
               <th className="px-4 py-3 font-medium">Cadastro</th>
+              <th className="px-4 py-3 font-medium">Ações</th>
             </tr>
           </thead>
           <tbody>
             {carregando && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-[var(--color-text-muted)]">
+                <td colSpan={7} className="px-4 py-6 text-center text-[var(--color-text-muted)]">
                   Carregando...
                 </td>
               </tr>
             )}
             {!carregando && clientesFiltrados.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-[var(--color-text-muted)]">
+                <td colSpan={7} className="px-4 py-6 text-center text-[var(--color-text-muted)]">
                   Nenhum cliente encontrado.
                 </td>
               </tr>
@@ -132,6 +151,16 @@ export default function Clientes() {
                 </td>
                 <td className="px-4 py-3 text-[var(--color-text-muted)]">
                   {formatarData(c.created_at)}
+                </td>
+                <td className="px-4 py-3">
+                  <button
+                    title="Excluir"
+                    disabled={excluindo === c.id}
+                    onClick={() => handleExcluir(c)}
+                    className="rounded-lg p-1.5 text-[var(--color-text-muted)] transition hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-danger)] disabled:opacity-50"
+                  >
+                    <Trash2 size={16} />
+                  </button>
                 </td>
               </tr>
             ))}
