@@ -5,11 +5,24 @@ import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
 import { fmtBRL, fmtDate, fmtPercent, mesAno } from '@/lib/utils/format'
 import { calcularMRR } from '@/lib/utils/comissao'
-import { FileText, Download } from 'lucide-react'
-import { useState } from 'react'
+import { FileText, Download, Printer } from 'lucide-react'
+import { useState, useEffect } from 'react'
 import type { Assinatura, Comissao } from '@/lib/types'
 
 type ReportType = 'assinaturas' | 'comissoes' | 'inadimplencia' | 'receita'
+
+interface ProfissionalComissao {
+  id: string
+  nome: string
+  funcao: string
+  comissaoPercentual: number
+  atendimentos: Array<{
+    servico: string
+    valor: number
+  }>
+  totalComissao: number
+  totalAtendimentos: number
+}
 
 const REPORTS = [
   { id: 'assinaturas' as ReportType, title: 'Relatório de Assinaturas', desc: 'Lista completa com status e valores', color: 'violet' },
@@ -34,6 +47,8 @@ function openPrintWindow(titulo: string, html: string) {
     .cancelada { background: #fee2e2; color: #991b1b; }
     .inadimplente { background: #ffedd5; color: #9a3412; }
     .suspensa { background: #fef9c3; color: #854d0e; }
+    .card { page-break-inside: avoid; }
+    .total-row { background: #f9fafb; font-weight: bold; }
     @media print { body { padding: 0; } }
   </style></head><body>${html}</body></html>`)
   w.document.close()
@@ -46,6 +61,63 @@ export default function RelatoriosPage() {
   const [mes, setMes] = useState(now.getMonth() + 1)
   const [ano, setAno] = useState(now.getFullYear())
   const [loading, setLoading] = useState<ReportType | null>(null)
+  const [comissoesData, setComissoesData] = useState<ProfissionalComissao[]>([])
+  const [showComissoesVisuais, setShowComissoesVisuais] = useState(false)
+
+  useEffect(() => {
+    if (showComissoesVisuais) {
+      carregarComissoes()
+    }
+  }, [mes, ano, showComissoesVisuais])
+
+  async function carregarComissoes() {
+    try {
+      const { data: atendimentos } = await supabase
+        .from('atendimentos')
+        .select('*, profissionais(id, nome, funcao, comissao_percentual), servicos(nome), assinaturas(periodicidade, planos(valor_mensal, valor_semestral, valor_anual))')
+        .gte('created_at', new Date(ano, mes - 1, 1).toISOString())
+        .lt('created_at', new Date(ano, mes, 1).toISOString())
+
+      const porProfissional: Record<string, ProfissionalComissao> = {} as any
+
+      (atendimentos ?? []).forEach(a => {
+        const prof = a.profissionais as { id: string; nome: string; funcao: string; comissao_percentual: number } | null
+        if (!prof) return
+
+        if (!porProfissional[prof.id]) {
+          porProfissional[prof.id] = {
+            id: prof.id,
+            nome: prof.nome,
+            funcao: prof.funcao,
+            comissaoPercentual: prof.comissao_percentual,
+            atendimentos: [],
+            totalComissao: 0,
+            totalAtendimentos: 0,
+          }
+        }
+
+        const assinatura = a.assinaturas as { periodicidade: string; planos: { valor_mensal: number; valor_semestral: number; valor_anual: number } } | null
+        const plano = assinatura?.planos
+        const periodicidade = assinatura?.periodicidade || 'mensal'
+
+        let valorPlano = 0
+        if (plano) {
+          valorPlano = periodicidade === 'mensal' ? plano.valor_mensal : periodicidade === 'semestral' ? plano.valor_semestral : plano.valor_anual
+        }
+
+        const comissao = (valorPlano * prof.comissao_percentual) / 100
+        const servico = (a.servicos as { nome: string } | null)?.nome || 'Serviço'
+
+        porProfissional[prof.id].atendimentos.push({ servico, valor: comissao })
+        porProfissional[prof.id].totalComissao += comissao
+        porProfissional[prof.id].totalAtendimentos++
+      })
+
+      setComissoesData(Object.values(porProfissional).sort((a, b) => b.totalComissao - a.totalComissao))
+    } catch (error) {
+      console.error('Erro ao carregar comissões:', error)
+    }
+  }
 
   async function gerarRelatorio(tipo: ReportType) {
     setLoading(tipo)
@@ -76,31 +148,57 @@ export default function RelatoriosPage() {
       }
 
       if (tipo === 'comissoes') {
-        const { data } = await supabase.from('comissoes').select('*, profissionais(nome, funcao), atendimentos(*, servicos(nome))').eq('periodo_mes', mes).eq('periodo_ano', ano)
-        const rows = (data ?? []) as Comissao[]
-        const porProfissional: Record<string, { nome: string; funcao: string; total: number; qtd: number }> = {}
-        rows.forEach(r => {
-          const id = r.profissional_id
-          const p = r.profissionais as { nome: string; funcao: string } | undefined
-          if (!porProfissional[id]) porProfissional[id] = { nome: p?.nome || '—', funcao: p?.funcao || '—', total: 0, qtd: 0 }
-          porProfissional[id].total += r.valor
-          porProfissional[id].qtd++
-        })
+        await carregarComissoes()
+        const totalGeral = comissoesData.reduce((s, p) => s + p.totalComissao, 0)
+        const totalAtendimentos = comissoesData.reduce((s, p) => s + p.totalAtendimentos, 0)
+
         const html = `
-          <h1>Relatório de Comissões — ${mesAno(mes, ano)}</h1>
-          <div class="sub">Gerado em ${fmtDate(new Date())} · ${rows.length} atendimentos</div>
-          <table>
-            <thead><tr><th>Profissional</th><th>Função</th><th>Atendimentos</th><th>Total Comissão</th></tr></thead>
-            <tbody>
-              ${Object.values(porProfissional).map(p => `
-                <tr>
-                  <td>${p.nome}</td><td>${p.funcao}</td><td>${p.qtd}</td><td><strong>${fmtBRL(p.total)}</strong></td>
-                </tr>
-              `).join('')}
-              <tr><td colspan="2"><strong>Total</strong></td><td><strong>${rows.length}</strong></td><td><strong>${fmtBRL(rows.reduce((s, r) => s + r.valor, 0))}</strong></td></tr>
-            </tbody>
-          </table>`
-        openPrintWindow('Relatório de Comissões', html)
+          <h1>Clube+ — Relatório Mensal de Comissões</h1>
+          <div class="sub">${mesAno(mes, ano)} · Gerado em ${fmtDate(new Date())}</div>
+
+          ${comissoesData.map(prof => `
+            <div class="card" style="margin-bottom: 24px; padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px;">
+              <div style="margin-bottom: 12px;">
+                <h3 style="margin: 0; font-size: 14px; font-weight: bold; color: #111;">${prof.nome}</h3>
+                <p style="margin: 4px 0 0 0; font-size: 12px; color: #666;">${prof.funcao} · ${prof.comissaoPercentual}% comissão</p>
+              </div>
+
+              <table style="width: 100%; margin-bottom: 12px; border-collapse: collapse; font-size: 12px;">
+                <thead>
+                  <tr style="border-bottom: 1px solid #ddd;">
+                    <th style="text-align: left; padding: 6px 0; font-size: 11px; text-transform: uppercase; color: #666;">Serviço</th>
+                    <th style="text-align: right; padding: 6px 0; font-size: 11px; text-transform: uppercase; color: #666;">Comissão</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${prof.atendimentos.map(a => `
+                    <tr style="border-bottom: 1px solid #eee;">
+                      <td style="padding: 6px 0;">${a.servico}</td>
+                      <td style="text-align: right; padding: 6px 0;">${fmtBRL(a.valor)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+
+              <div style="padding-top: 12px; border-top: 2px solid #e5e7eb; display: flex; justify-content: space-between;">
+                <span style="font-size: 12px; color: #666;">Total de atendimentos: <strong>${prof.totalAtendimentos}</strong></span>
+                <span style="font-size: 12px; color: #666;">Total: <strong style="color: #059669; font-size: 14px;">${fmtBRL(prof.totalComissao)}</strong></span>
+              </div>
+            </div>
+          `).join('')}
+
+          <div class="total-row" style="padding: 16px; background: #f9fafb; border-top: 3px solid #059669; margin-top: 24px;">
+            <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold;">
+              <span>Total Geral do Salão</span>
+              <span style="color: #059669; font-size: 16px;">${fmtBRL(totalGeral)}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 8px;">
+              <span>${totalAtendimentos} atendimentos realizados</span>
+              <span>${comissoesData.length} profissionais</span>
+            </div>
+          </div>`
+
+        openPrintWindow(`Relatório de Comissões — ${mesAno(mes, ano)}`, html)
       }
 
       if (tipo === 'inadimplencia') {
@@ -153,7 +251,7 @@ export default function RelatoriosPage() {
                   <td>${mrr > 0 ? fmtPercent((p.receita / mrr) * 100) : '—'}</td>
                 </tr>
               `).join('')}
-              <tr><td><strong>Total</strong></td><td><strong>${rows.length}</strong></td><td><strong>${fmtBRL(mrr)}</strong></td><td>100%</td></tr>
+              <tr class="total-row"><td><strong>Total</strong></td><td><strong>${rows.length}</strong></td><td><strong>${fmtBRL(mrr)}</strong></td><td>100%</td></tr>
             </tbody>
           </table>`
         openPrintWindow('Relatório de Receita MRR', html)
@@ -170,13 +268,16 @@ export default function RelatoriosPage() {
     blue: 'border-t-blue-500',
   }
 
+  const totalGeral = comissoesData.reduce((s, p) => s + p.totalComissao, 0)
+  const totalAtendimentos = comissoesData.reduce((s, p) => s + p.totalAtendimentos, 0)
+
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
-      <Topbar title="Relatórios" subtitle="Exporte e imprima" />
+      <Topbar title="Relatórios" subtitle="Exporte, visualize e imprima" />
       <main className="flex-1 overflow-y-auto p-6 space-y-6">
-        {/* Filtro período (para comissões) */}
+        {/* Filtro período */}
         <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-500">Período (comissões):</span>
+          <span className="text-sm text-gray-500">Período:</span>
           <select value={mes} onChange={e => setMes(Number(e.target.value))} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm">
             {Array.from({ length: 12 }, (_, i) => (
               <option key={i + 1} value={i + 1}>{new Date(2024, i).toLocaleDateString('pt-BR', { month: 'long' })}</option>
@@ -187,6 +288,7 @@ export default function RelatoriosPage() {
           </select>
         </div>
 
+        {/* Cards de relatórios */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {REPORTS.map(r => (
             <Card key={r.id} className={`border-t-4 ${colorMap[r.color]}`}>
@@ -202,14 +304,94 @@ export default function RelatoriosPage() {
                   size="sm"
                   variant="outline"
                   loading={loading === r.id}
-                  onClick={() => gerarRelatorio(r.id)}
+                  onClick={() => {
+                    if (r.id === 'comissoes') {
+                      setShowComissoesVisuais(!showComissoesVisuais)
+                    }
+                    gerarRelatorio(r.id)
+                  }}
                 >
-                  <Download size={14} /> Gerar PDF
+                  {r.id === 'comissoes' && showComissoesVisuais ? (
+                    <>
+                      <Printer size={14} /> Imprimir
+                    </>
+                  ) : (
+                    <>
+                      <Download size={14} /> Gerar
+                    </>
+                  )}
                 </Button>
               </CardBody>
             </Card>
           ))}
         </div>
+
+        {/* Visualização de comissões */}
+        {showComissoesVisuais && (
+          <div className="space-y-6">
+            {/* Cabeçalho */}
+            <div className="border-b border-gray-200 pb-6">
+              <h1 className="text-3xl font-bold text-gray-900">Clube+ Assinaturas</h1>
+              <p className="text-lg text-gray-600 mt-2">Relatório Mensal de Comissões — {mesAno(mes, ano)}</p>
+              <p className="text-sm text-gray-400 mt-1">Gerado em {fmtDate(new Date())}</p>
+            </div>
+
+            {/* Cards por profissional */}
+            <div className="space-y-4">
+              {comissoesData.map(prof => (
+                <Card key={prof.id} className="border-l-4 border-l-violet-500">
+                  <CardBody>
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <h3 className="font-bold text-gray-900">{prof.nome}</h3>
+                        <p className="text-sm text-gray-500">{prof.funcao} • {prof.comissaoPercentual}% comissão</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-emerald-600">{fmtBRL(prof.totalComissao)}</p>
+                        <p className="text-xs text-gray-500">{prof.totalAtendimentos} atendimento(s)</p>
+                      </div>
+                    </div>
+
+                    {prof.atendimentos.length > 0 && (
+                      <div className="rounded-lg bg-gray-50 p-3">
+                        <div className="text-xs font-semibold text-gray-600 mb-2 uppercase">Serviços realizados</div>
+                        <div className="space-y-1.5">
+                          {prof.atendimentos.map((att, idx) => (
+                            <div key={idx} className="flex justify-between text-sm">
+                              <span className="text-gray-700">{att.servico}</span>
+                              <span className="font-medium text-gray-900">{fmtBRL(att.valor)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </CardBody>
+                </Card>
+              ))}
+            </div>
+
+            {/* Rodapé com total geral */}
+            {comissoesData.length > 0 && (
+              <Card className="border-t-4 border-t-emerald-600 bg-gradient-to-r from-emerald-50 to-white">
+                <CardBody>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Total Geral do Salão</p>
+                      <p className="text-xs text-gray-500 mt-1">{totalAtendimentos} atendimentos • {comissoesData.length} profissionais</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-3xl font-bold text-emerald-600">{fmtBRL(totalGeral)}</p>
+                    </div>
+                  </div>
+
+                  <Button className="w-full mt-4" onClick={() => window.print()}>
+                    <Printer size={16} /> Imprimir Relatório
+                  </Button>
+                </CardBody>
+              </Card>
+            )}
+          </div>
+        )}
       </main>
     </div>
   )
