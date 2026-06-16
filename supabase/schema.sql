@@ -95,8 +95,10 @@ create table if not exists profissionais (
   id uuid primary key default gen_random_uuid(),
   tenant_id uuid not null references tenants(id) on delete cascade,
   nome text not null,
+  especialidade text,
   telefone text,
   percentual_comissao numeric(5,2) not null default 0,
+  foto_url text,
   ativo boolean not null default true,
   created_at timestamptz not null default now()
 );
