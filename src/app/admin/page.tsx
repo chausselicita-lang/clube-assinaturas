@@ -52,7 +52,7 @@ export default function AdminPage() {
         body: JSON.stringify(form),
       })
       const json = await res.json()
-      if (!res.ok) throw new Error(json.error ?? 'Falha ao criar tenant')
+      if (!res.ok) throw new Error(json.error ?? 'Falha ao criar empresa')
       return json as { email: string; senha: string }
     },
     onSuccess: (creds) => {
@@ -103,16 +103,16 @@ export default function AdminPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-bold text-gray-900">Rede de tenants</h1>
+          <h1 className="text-lg font-bold text-gray-900">Rede de empresas</h1>
           <p className="text-sm text-gray-500">Todas as barbearias/salões que assinam o Clube+</p>
         </div>
-        <Button onClick={() => setNovoOpen(true)}><Plus size={16} /> Novo tenant</Button>
+        <Button onClick={() => setNovoOpen(true)}><Plus size={16} /> Nova empresa</Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <KpiCard title="Tenants ativos" value={String(resumo?.tenantsAtivos ?? 0)} subtitle={`${resumo?.totalTenants ?? 0} no total`} icon={Building2} color="violet" />
+        <KpiCard title="Empresas ativas" value={String(resumo?.tenantsAtivos ?? 0)} subtitle={`${resumo?.totalTenants ?? 0} no total`} icon={Building2} color="violet" />
         <KpiCard title="MRR da rede" value={fmtBRL(resumo?.mrrRede ?? 0)} icon={TrendingUp} color="emerald" />
-        <KpiCard title="Assinantes ativos" value={String(resumo?.assinantesAtivos ?? 0)} subtitle="somando todos os tenants" icon={Users} color="blue" />
+        <KpiCard title="Assinantes ativos" value={String(resumo?.assinantesAtivos ?? 0)} subtitle="somando todas as empresas" icon={Users} color="blue" />
         <KpiCard title="Bloqueados" value={String((resumo?.totalTenants ?? 0) - (resumo?.tenantsAtivos ?? 0))} icon={Lock} color="orange" />
       </div>
 
@@ -121,7 +121,7 @@ export default function AdminPage() {
           loading={isLoading}
           keyField="id"
           data={data?.tenants ?? []}
-          emptyMessage="Nenhum tenant cadastrado ainda."
+          emptyMessage="Nenhuma empresa cadastrada ainda."
           columns={[
             { key: 'nome', header: 'Empresa' },
             {
@@ -157,7 +157,7 @@ export default function AdminPage() {
         />
       </Card>
 
-      <Modal open={novoOpen} onClose={() => setNovoOpen(false)} title="Novo tenant" size="sm">
+      <Modal open={novoOpen} onClose={() => setNovoOpen(false)} title="Nova empresa" size="sm">
         <form onSubmit={e => { e.preventDefault(); criar.mutate() }} className="space-y-4">
           <Input label="Nome da barbearia/salão" placeholder="Barbearia do João" value={form.empresaNome}
             onChange={e => setForm(f => ({ ...f, empresaNome: e.target.value }))} required />
@@ -168,14 +168,14 @@ export default function AdminPage() {
           {erro && <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">{erro}</div>}
           <div className="flex justify-end gap-3 pt-2">
             <Button type="button" variant="outline" onClick={() => setNovoOpen(false)}>Cancelar</Button>
-            <Button type="submit" loading={criar.isPending}>Criar tenant</Button>
+            <Button type="submit" loading={criar.isPending}>Criar empresa</Button>
           </div>
         </form>
       </Modal>
 
-      <Modal open={!!credenciais} onClose={() => setCredenciais(null)} title="Tenant criado" size="sm">
+      <Modal open={!!credenciais} onClose={() => setCredenciais(null)} title="Empresa criada" size="sm">
         <div className="space-y-4">
-          <p className="text-sm text-gray-600">Salve a senha agora — ela não é exibida de novo. Repasse essas credenciais pro responsável do tenant.</p>
+          <p className="text-sm text-gray-600">Salve a senha agora — ela não é exibida de novo. Repasse essas credenciais pro responsável da empresa.</p>
           <div className="rounded-lg bg-gray-50 p-4 space-y-2 text-sm">
             <div><span className="text-gray-500">E-mail:</span> <span className="font-medium">{credenciais?.email}</span></div>
             <div className="flex items-center justify-between">
