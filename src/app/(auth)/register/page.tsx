@@ -29,16 +29,11 @@ export default function RegisterPage() {
     })
 
     if (authError) { setError(authError.message); return }
+    if (!authData.user) { setError('Erro ao criar conta. Tente novamente.'); return }
 
-    if (authData.user) {
-      const { error: empresaError } = await supabase.from('empresas').insert({
-        nome: data.empresa_nome,
-        plano_saas: 'trial',
-        config: {},
-      })
-      if (empresaError) { setError('Erro ao criar empresa. Tente novamente.'); return }
-    }
-
+    // A empresa é criada no trigger handle_new_user (banco), a partir dos
+    // metadados enviados acima — evita RLS bloqueando um insert direto do
+    // client e evita vincular o usuário a uma empresa de outro tenant.
     setSuccess(true)
   }
 

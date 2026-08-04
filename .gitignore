@@ -16,7 +16,9 @@
 # next.js
 /.next/
 /out/
-# /docs is committed for GitHub Pages
+
+# supabase CLI local link/cache
+supabase/.temp
 
 # production
 /build
