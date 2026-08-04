@@ -85,8 +85,18 @@ export default function AssinaturasPage() {
         creditos_totais: plano?.creditos_mensais ?? 0,
       }
 
-      if (editing) await supabase.from('assinaturas').update(payload).eq('id', editing.id)
-      else await supabase.from('assinaturas').insert(payload)
+      if (editing) {
+        await supabase.from('assinaturas').update(payload).eq('id', editing.id)
+      } else {
+        const { data: nova } = await supabase.from('assinaturas').insert(payload).select('id').single()
+        if (nova) {
+          fetch('/api/assinaturas/cobranca', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ assinaturaId: nova.id }),
+          }).catch(() => {})
+        }
+      }
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['assinaturas'] }); setOpen(false) },
   })

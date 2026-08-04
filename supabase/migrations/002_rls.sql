@@ -36,11 +36,18 @@ create policy "comissoes_empresa" on comissoes using (empresa_id = get_empresa_i
 create policy "fechamentos_empresa" on fechamentos using (empresa_id = get_empresa_id());
 
 -- Políticas INSERT: herda empresa_id automaticamente via trigger
+-- Só preenche empresa_id automaticamente quando ainda não veio setado.
+-- Isso permite que código de servidor sem sessão de usuário (service_role:
+-- webhooks de pagamento, jobs agendados via pg_cron) grave explicitamente
+-- o empresa_id correto sem que o trigger sobrescreva com o resultado de
+-- get_empresa_id() (que dá null fora de uma sessão autenticada).
 create or replace function set_empresa_id()
 returns trigger language plpgsql
 as $$
 begin
-  new.empresa_id := get_empresa_id();
+  if new.empresa_id is null then
+    new.empresa_id := get_empresa_id();
+  end if;
   return new;
 end;
 $$;
