@@ -29,7 +29,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: 'Nenhum admin encontrado para esse tenant' }, { status: 404 })
   }
 
-  const siteUrl = request.headers.get('origin') ?? process.env.NEXT_PUBLIC_SITE_URL ?? ''
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? request.headers.get('origin') ?? ''
 
   const { data, error } = await admin.auth.admin.generateLink({
     type: 'magiclink',
@@ -38,8 +38,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   })
 
   if (error || !data?.properties?.action_link) {
+    console.error('acessar-como: generateLink falhou', { siteUrl, email: usuario.email, error })
     return NextResponse.json({ error: error?.message ?? 'falha ao gerar link' }, { status: 400 })
   }
 
+  console.log('acessar-como: link gerado', { siteUrl, email: usuario.email })
   return NextResponse.json({ link: data.properties.action_link })
 }

@@ -7,7 +7,7 @@ import { Modal } from '@/components/ui/modal'
 import { Card } from '@/components/ui/card'
 import { fmtBRL, fmtDate } from '@/lib/utils/format'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Building2, TrendingUp, Users, Plus, LogIn, Lock, Unlock, Copy, Check } from 'lucide-react'
+import { Building2, TrendingUp, Users, Plus, LogIn, Lock, Unlock, MailCheck } from 'lucide-react'
 import { useState } from 'react'
 
 interface Tenant {
@@ -30,8 +30,7 @@ interface Resumo {
 export default function AdminPage() {
   const qc = useQueryClient()
   const [novoOpen, setNovoOpen] = useState(false)
-  const [credenciais, setCredenciais] = useState<{ email: string; senha: string } | null>(null)
-  const [copiado, setCopiado] = useState(false)
+  const [convidado, setConvidado] = useState<{ email: string } | null>(null)
   const [form, setForm] = useState({ empresaNome: '', adminNome: '', adminEmail: '' })
   const [erro, setErro] = useState('')
   const [erroAcessar, setErroAcessar] = useState('')
@@ -54,14 +53,14 @@ export default function AdminPage() {
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Falha ao criar empresa')
-      return json as { email: string; senha: string }
+      return json as { email: string }
     },
-    onSuccess: (creds) => {
+    onSuccess: ({ email }) => {
       qc.invalidateQueries({ queryKey: ['admin-tenants'] })
       setNovoOpen(false)
       setForm({ empresaNome: '', adminNome: '', adminEmail: '' })
       setErro('')
-      setCredenciais(creds)
+      setConvidado({ email })
     },
     onError: (err: Error) => setErro(err.message),
   })
@@ -94,13 +93,6 @@ export default function AdminPage() {
       setErroAcessar(err.message)
     },
   })
-
-  function copiarSenha() {
-    if (!credenciais) return
-    navigator.clipboard.writeText(credenciais.senha)
-    setCopiado(true)
-    setTimeout(() => setCopiado(false), 2000)
-  }
 
   const resumo = data?.resumo
 
@@ -189,19 +181,16 @@ export default function AdminPage() {
         </form>
       </Modal>
 
-      <Modal open={!!credenciais} onClose={() => setCredenciais(null)} title="Empresa criada" size="sm">
-        <div className="space-y-4">
-          <p className="text-sm text-gray-600">Salve a senha agora — ela não é exibida de novo. Repasse essas credenciais pro responsável da empresa.</p>
-          <div className="rounded-lg bg-gray-50 p-4 space-y-2 text-sm">
-            <div><span className="text-gray-500">E-mail:</span> <span className="font-medium">{credenciais?.email}</span></div>
-            <div className="flex items-center justify-between">
-              <span><span className="text-gray-500">Senha:</span> <span className="font-mono font-medium">{credenciais?.senha}</span></span>
-              <button onClick={copiarSenha} className="p-1.5 rounded-md hover:bg-gray-200 text-gray-500">
-                {copiado ? <Check size={15} className="text-emerald-600" /> : <Copy size={15} />}
-              </button>
-            </div>
+      <Modal open={!!convidado} onClose={() => setConvidado(null)} title="Empresa criada" size="sm">
+        <div className="space-y-4 text-center py-2">
+          <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
+            <MailCheck size={22} className="text-emerald-600" />
           </div>
-          <Button className="w-full" onClick={() => setCredenciais(null)}>Fechar</Button>
+          <p className="text-sm text-gray-600">
+            Convite enviado pra <span className="font-medium text-gray-900">{convidado?.email}</span>.
+            O responsável recebe um e-mail pra definir a própria senha e já entra direto na conta.
+          </p>
+          <Button className="w-full" onClick={() => setConvidado(null)}>Fechar</Button>
         </div>
       </Modal>
     </div>

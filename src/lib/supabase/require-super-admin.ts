@@ -17,10 +17,3 @@ export async function requireSuperAdmin() {
   if (usuario?.role !== 'super_admin') return null
   return user
 }
-
-export function gerarSenhaProvisoria(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
-  let out = ''
-  for (let i = 0; i < 12; i++) out += chars[Math.floor(Math.random() * chars.length)]
-  return out
-}

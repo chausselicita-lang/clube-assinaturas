@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireSuperAdmin, gerarSenhaProvisoria } from '@/lib/supabase/require-super-admin'
+import { requireSuperAdmin } from '@/lib/supabase/require-super-admin'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { calcularMRR } from '@/lib/utils/comissao'
 
@@ -49,16 +49,14 @@ export async function POST(request: NextRequest) {
   }
 
   const admin = createAdminClient()
-  const senha = gerarSenhaProvisoria()
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? request.headers.get('origin') ?? ''
 
-  const { data, error } = await admin.auth.admin.createUser({
-    email: adminEmail,
-    password: senha,
-    email_confirm: true,
-    user_metadata: { nome: adminNome, empresa_nome: empresaNome },
+  const { data, error } = await admin.auth.admin.inviteUserByEmail(adminEmail, {
+    data: { nome: adminNome, empresa_nome: empresaNome },
+    redirectTo: `${siteUrl}/definir-senha`,
   })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
-  return NextResponse.json({ userId: data.user?.id, email: adminEmail, senha })
+  return NextResponse.json({ userId: data.user?.id, email: adminEmail })
 }
