@@ -15,7 +15,6 @@ interface ProfissionalComissao {
   id: string
   nome: string
   funcao: string
-  comissaoPercentual: number
   atendimentos: Array<{
     servico: string
     valor: number
@@ -74,14 +73,14 @@ export default function RelatoriosPage() {
     try {
       const { data: atendimentos } = await supabase
         .from('atendimentos')
-        .select('*, profissionais(id, nome, funcao, comissao_percentual), servicos(nome), assinaturas(periodicidade, planos(valor_mensal, valor_semestral, valor_anual))')
+        .select('*, profissionais(id, nome, funcao), servicos(nome)')
         .gte('created_at', new Date(ano, mes - 1, 1).toISOString())
         .lt('created_at', new Date(ano, mes, 1).toISOString())
 
       const porProfissional: Record<string, ProfissionalComissao> = {} as any
 
       (atendimentos ?? []).forEach(a => {
-        const prof = a.profissionais as { id: string; nome: string; funcao: string; comissao_percentual: number } | null
+        const prof = a.profissionais as { id: string; nome: string; funcao: string } | null
         if (!prof) return
 
         if (!porProfissional[prof.id]) {
@@ -89,23 +88,13 @@ export default function RelatoriosPage() {
             id: prof.id,
             nome: prof.nome,
             funcao: prof.funcao,
-            comissaoPercentual: prof.comissao_percentual,
             atendimentos: [],
             totalComissao: 0,
             totalAtendimentos: 0,
           }
         }
 
-        const assinatura = a.assinaturas as { periodicidade: string; planos: { valor_mensal: number; valor_semestral: number; valor_anual: number } } | null
-        const plano = assinatura?.planos
-        const periodicidade = assinatura?.periodicidade || 'mensal'
-
-        let valorPlano = 0
-        if (plano) {
-          valorPlano = periodicidade === 'mensal' ? plano.valor_mensal : periodicidade === 'semestral' ? plano.valor_semestral : plano.valor_anual
-        }
-
-        const comissao = (valorPlano * prof.comissao_percentual) / 100
+        const comissao = a.valor_comissao as number
         const servico = (a.servicos as { nome: string } | null)?.nome || 'Serviço'
 
         porProfissional[prof.id].atendimentos.push({ servico, valor: comissao })
@@ -160,7 +149,7 @@ export default function RelatoriosPage() {
             <div class="card" style="margin-bottom: 24px; padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px;">
               <div style="margin-bottom: 12px;">
                 <h3 style="margin: 0; font-size: 14px; font-weight: bold; color: #111;">${prof.nome}</h3>
-                <p style="margin: 4px 0 0 0; font-size: 12px; color: #666;">${prof.funcao} · ${prof.comissaoPercentual}% comissão</p>
+                <p style="margin: 4px 0 0 0; font-size: 12px; color: #666;">${prof.funcao}</p>
               </div>
 
               <table style="width: 100%; margin-bottom: 12px; border-collapse: collapse; font-size: 12px;">
@@ -344,7 +333,7 @@ export default function RelatoriosPage() {
                     <div className="flex items-start justify-between mb-4">
                       <div>
                         <h3 className="font-bold text-gray-900">{prof.nome}</h3>
-                        <p className="text-sm text-gray-500">{prof.funcao} • {prof.comissaoPercentual}% comissão</p>
+                        <p className="text-sm text-gray-500">{prof.funcao}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-2xl font-bold text-emerald-600">{fmtBRL(prof.totalComissao)}</p>
