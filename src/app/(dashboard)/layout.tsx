@@ -8,6 +8,17 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const { data: usuario } = await supabase
+    .from('usuarios')
+    .select('role, empresas(status)')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (usuario?.role === 'super_admin') redirect('/admin')
+
+  const empresa = usuario?.empresas as unknown as { status: string } | null
+  if (empresa?.status === 'bloqueado') redirect('/bloqueado')
+
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
       <Sidebar />
