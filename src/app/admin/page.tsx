@@ -34,6 +34,7 @@ export default function AdminPage() {
   const [copiado, setCopiado] = useState(false)
   const [form, setForm] = useState({ empresaNome: '', adminNome: '', adminEmail: '' })
   const [erro, setErro] = useState('')
+  const [erroAcessar, setErroAcessar] = useState('')
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-tenants'],
@@ -84,10 +85,14 @@ export default function AdminPage() {
       if (!res.ok) throw new Error(json.error ?? 'Falha ao gerar acesso')
       return json as { link: string }
     },
+    onMutate: () => setErroAcessar(''),
     onSuccess: ({ link }) => {
       window.location.href = link
     },
-    onError: (err: Error) => alert(err.message),
+    onError: (err: Error) => {
+      console.error('acessar como falhou:', err)
+      setErroAcessar(err.message)
+    },
   })
 
   function copiarSenha() {
@@ -116,6 +121,10 @@ export default function AdminPage() {
         <KpiCard title="Bloqueados" value={String((resumo?.totalTenants ?? 0) - (resumo?.tenantsAtivos ?? 0))} icon={Lock} color="orange" />
       </div>
 
+      {erroAcessar && (
+        <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">{erroAcessar}</div>
+      )}
+
       <Card>
         <DataTable<Tenant>
           loading={isLoading}
@@ -139,13 +148,20 @@ export default function AdminPage() {
               key: 'acoes', header: '', className: 'w-64',
               render: r => (
                 <div className="flex gap-2 justify-end">
-                  <Button size="sm" variant="outline" loading={acessarComo.isPending} onClick={() => acessarComo.mutate(r.id)}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    loading={acessarComo.isPending && acessarComo.variables === r.id}
+                    disabled={acessarComo.isPending && acessarComo.variables !== r.id}
+                    onClick={() => acessarComo.mutate(r.id)}
+                  >
                     <LogIn size={14} /> Acessar como
                   </Button>
                   <Button
                     size="sm"
                     variant={r.status === 'ativo' ? 'destructive' : 'success'}
-                    loading={alternarStatus.isPending}
+                    loading={alternarStatus.isPending && alternarStatus.variables?.id === r.id}
+                    disabled={alternarStatus.isPending && alternarStatus.variables?.id !== r.id}
                     onClick={() => alternarStatus.mutate({ id: r.id, status: r.status === 'ativo' ? 'bloqueado' : 'ativo' })}
                   >
                     {r.status === 'ativo' ? <><Lock size={14} /> Bloquear</> : <><Unlock size={14} /> Reativar</>}
